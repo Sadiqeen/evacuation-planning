@@ -1,6 +1,7 @@
 using AutoMapper;
 using EvacuationPlanning.Models;
 using EvacuationPlanning.Models.Dtos;
+using EvacuationPlanning.Models.Dtos.Vehicle;
 
 namespace EvacuationPlanning.Mapper
 {
@@ -12,6 +13,9 @@ namespace EvacuationPlanning.Mapper
             CreateMap<TableVehicle, VehicleDto>().ReverseMap();
             CreateMap<TableEvacuationZone, CreateEvacuationZoneDto>().ReverseMap();
             CreateMap<TableEvacuationZone, EvacuationZoneDto>().ReverseMap();
+
+            CreateMap<VehicleDto, VehicleDistanceDto>().ReverseMap();
+            
         }
     }
 }
