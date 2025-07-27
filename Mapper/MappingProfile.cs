@@ -14,8 +14,7 @@ namespace EvacuationPlanning.Mapper
             CreateMap<TableEvacuationZone, CreateEvacuationZoneDto>().ReverseMap();
             CreateMap<TableEvacuationZone, EvacuationZoneDto>().ReverseMap();
 
-            CreateMap<VehicleDto, VehicleDistanceDto>().ReverseMap();
-            
+            CreateMap<TableVehicle, VehicleDistanceDto>().ReverseMap();
         }
     }
 }

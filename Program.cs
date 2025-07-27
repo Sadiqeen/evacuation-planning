@@ -25,6 +25,7 @@ builder.Services.AddAutoMapper(cfg => cfg.AddProfile<MappingProfile>());
 // Add Services
 builder.Services.AddScoped<IVehicleService, VehicleService>();
 builder.Services.AddScoped<IEvacuationZoneService, EvacuationZoneService>();
+builder.Services.AddScoped<IEvacuationService, EvacuationService>();
 
 // Add Repository
 builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
