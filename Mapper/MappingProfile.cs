@@ -9,12 +9,37 @@ namespace EvacuationPlanning.Mapper
     {
         public MappingProfile()
         {
-            CreateMap<TableVehicle, CreateVehicleDto>().ReverseMap();
-            CreateMap<TableVehicle, VehicleDto>().ReverseMap();
-            CreateMap<TableEvacuationZone, CreateEvacuationZoneDto>().ReverseMap();
-            CreateMap<TableEvacuationZone, EvacuationZoneDto>().ReverseMap();
-
-            CreateMap<TableVehicle, VehicleDistanceDto>().ReverseMap();
+            CreateMap<CreateVehicleDto, TableVehicle>()
+                .ForMember(dest => dest.Latitude, opt => opt.MapFrom(src => src.LocationCoordinates.Latitude))
+                .ForMember(dest => dest.Longitude, opt => opt.MapFrom(src => src.LocationCoordinates.Longitude))
+                .ReverseMap();
+            CreateMap<TableVehicle, VehicleDto>()
+                .ForMember(dest => dest.LocationCoordinates, opt => opt.MapFrom(src => new LocationCoordinatesDto
+                {
+                    Latitude = src.Latitude,
+                    Longitude = src.Longitude
+                }))
+                .ReverseMap();
+                
+            CreateMap<CreateEvacuationZoneDto, TableEvacuationZone>()
+                .ForMember(dest => dest.Latitude, opt => opt.MapFrom(src => src.LocationCoordinates.Latitude))
+                .ForMember(dest => dest.Longitude, opt => opt.MapFrom(src => src.LocationCoordinates.Longitude))
+                .ReverseMap();
+                
+            CreateMap<TableEvacuationZone, EvacuationZoneDto>()
+                .ForMember(dest => dest.LocationCoordinates, opt => opt.MapFrom(src => new LocationCoordinatesDto
+                {
+                    Latitude = src.Latitude,
+                    Longitude = src.Longitude
+                }))
+                .ReverseMap();
+            CreateMap<TableVehicle, VehicleDistanceDto>()
+                .ForMember(dest => dest.LocationCoordinates, opt => opt.MapFrom(src => new LocationCoordinatesDto
+                {
+                    Latitude = src.Latitude,
+                    Longitude = src.Longitude
+                }))
+                .ReverseMap();
         }
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using EvacuationPlanning.Services.Interfaces;
 using AutoMapper;
+using EvacuationPlanning.Models.Dtos.Evacuation;
 
 namespace EvacuationPlanning.Controllers
 {
@@ -24,10 +25,9 @@ namespace EvacuationPlanning.Controllers
         }
 
         [HttpPost("plan")]
-        public async Task generatePlan()
+        public async Task<List<EvacuationPlanDto>> GeneratePlan()
         {
-            await _evacuationService.GeneratePlan();
-            // TODO : Add response handling
+            return await _evacuationService.GeneratePlan();
         }
 
     }

@@ -5,6 +5,7 @@ using EvacuationPlanning.Models.Dtos.Evacuation;
 using EvacuationPlanning.Models.Dtos.Vehicle;
 using EvacuationPlanning.Repositories.Interfaces;
 using EvacuationPlanning.Services.Interfaces;
+using EvacuationPlanning.Utils;
 
 namespace EvacuationPlanning.Services
 {
@@ -28,10 +29,11 @@ namespace EvacuationPlanning.Services
             _evacuationZoneRepository = evacuationZoneRepository;
         }
 
-        public async Task GeneratePlan()
+        public async Task<List<EvacuationPlanDto>> GeneratePlan()
         {
             var vehicles = await _vehicleRepository.GetAllAsync();
             var zones = await _evacuationZoneRepository.GetAllAsync();
+            zones = zones.OrderByDescending(x => x.UrgencyLevel).ToList();
 
             if (vehicles.Count == 0 || zones.Count == 0)
             {
@@ -43,28 +45,50 @@ namespace EvacuationPlanning.Services
 
             foreach (var zone in zones)
             {
-                vehicleDistances = CalculateDistance(vehicleDistances, _reasonableDistance);
+                vehicleDistances = CalculateDistance(zone, vehicleDistances, _reasonableDistance);
                 AssignVehicle(vehicleDistances, zone, plan);
             }
 
-            _logger.LogInformation("Evacuation plan generated successfully.");
-            _logger.LogInformation("Plan details: {@Plan}", JsonSerializer.Serialize(plan));
+            return plan;
         }
 
-        private static List<VehicleDistanceDto> CalculateDistance(List<VehicleDistanceDto> vehicleDistances, int reasonableDistance)
+        private static List<VehicleDistanceDto> CalculateDistance(TableEvacuationZone zone, List<VehicleDistanceDto> vehicleDistances, int reasonableDistance)
         {
             return vehicleDistances = vehicleDistances
-                    .Where(x => x.Distance <= reasonableDistance)
                     .Where(x => x.IsAvailable)
-                    .Select(x => new VehicleDistanceDto()
+                    .Select(x =>
                     {
-                        VehicleId = x.VehicleId,
-                        LocationCoordinates = x.LocationCoordinates,
-                        Capacity = x.Capacity,
-                        Type = x.Type,
-                        // TODO : Calculate real distance and ETA
-                        Distance = 10,
-                        ETA = "10",
+                        // Calculate distance and ETA
+                        var distance = HaversineCalculate.Distance(
+                            x.LocationCoordinates.Latitude,
+                            zone.Latitude,
+                            x.LocationCoordinates.Longitude,
+                            zone.Longitude);
+
+                        var etaInSec = distance / UnitConvert.FromKmhToMps(x.Speed);
+                        var eta = "";
+                        
+                        if (etaInSec <= TimeSpan.MaxValue.TotalMilliseconds)
+                        {
+                            eta = $"{TimeSpan.FromSeconds(etaInSec).Minutes} minutes";
+                        }
+                        else
+                        {
+                            eta = "N/A";
+                        }
+
+                        var test = new VehicleDistanceDto()
+                        {
+                            VehicleId = x.VehicleId,
+                            LocationCoordinates = x.LocationCoordinates,
+                            Capacity = x.Capacity,
+                            Type = x.Type,
+                            Distance = distance,
+                            Speed = x.Speed,
+                            ETA = eta,
+                        };
+
+                        return test;
                     })
                     .ToList();
         }
@@ -84,16 +108,29 @@ namespace EvacuationPlanning.Services
 
             if (assignedVehicle == null)
             {
+                // No vehicle available for this zone
+                plan.Add(new EvacuationPlanDto()
+                {
+                    ZoneId = zone.ZoneId,
+                    VehicleId = null,
+                    ETA = null,
+                    NumberOfPeople = 0,
+                });
+
                 return;
             }
 
+            // Assign vehicle to zone
             assignedVehicle.IsAvailable = false;
             plan.Add(new EvacuationPlanDto()
             {
                 ZoneId = zone.ZoneId,
                 VehicleId = assignedVehicle.VehicleId,
                 ETA = assignedVehicle.ETA,
-                NumberOfPeople = assignedVehicle.Capacity,
+                NumberOfPeople =
+                    zone.NumberOfPeople >= assignedVehicle.Capacity
+                        ? assignedVehicle.Capacity
+                        : assignedVehicle.Capacity - zone.NumberOfPeople,
             });
 
             int remain = zone.NumberOfPeople - assignedVehicle.Capacity;
@@ -104,6 +141,8 @@ namespace EvacuationPlanning.Services
                 vehicleDistances = vehicleDistances.Where(x => x.VehicleId != assignedVehicle.VehicleId).ToList();
                 AssignVehicle(vehicleDistances, zone, plan);
             }
+
+            return;
         }
     }
 }
