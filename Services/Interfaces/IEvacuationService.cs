@@ -4,6 +4,7 @@ namespace EvacuationPlanning.Services.Interfaces
 {
     public interface IEvacuationService
     {
-        Task<List<EvacuationPlanDto>> GeneratePlan();
+        Task<List<EvacuationStatusDto>> GeneratePlan();
+        Task<List<EvacuationStatusDto>> UpdateStatus(List<EvacuationStatusDto> plan, UpdateEvacuationStatusDto updateDto);
     }
 }

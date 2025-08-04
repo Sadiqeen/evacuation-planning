@@ -3,6 +3,7 @@ using EvacuationPlanning.Services.Interfaces;
 using AutoMapper;
 using EvacuationPlanning.Models.Dtos.Evacuation;
 using EvacuationPlanning.Infrastructures.Interfaces;
+using EvacuationPlanning.Models.Dtos;
 
 namespace EvacuationPlanning.Controllers
 {
@@ -14,6 +15,7 @@ namespace EvacuationPlanning.Controllers
         private readonly ILogger<EvacuationController> _logger;
         private readonly IEvacuationService _evacuationService;
         private readonly IRedisService _redisService;
+        private const string _cacheKey = "evacuation_plan";
 
         public EvacuationController(
             IMapper mapper,
@@ -29,26 +31,73 @@ namespace EvacuationPlanning.Controllers
         }
 
         [HttpPost("plan")]
-        public async Task<List<EvacuationPlanDto>> GeneratePlan()
+        public async Task<ActionResult<List<EvacuationPlanResponseDto>>> GeneratePlan()
         {
-            var cacheKey = "evacuation_plan";
-            var plan = await _redisService.GetAsync<List<EvacuationPlanDto>>(cacheKey);
+            var plan = await _redisService.GetAsync<List<EvacuationStatusDto>>(_cacheKey);
 
             if (plan == null)
             {
                 plan = await _evacuationService.GeneratePlan();
-                await _redisService.SetAsync(cacheKey, plan);
+                await _redisService.SetAsync(_cacheKey, plan);
             }
 
-            return plan;
+            var response = _mapper.Map<List<EvacuationPlanResponseDto>>(plan);
+            return Ok(response);
         }
 
+        [HttpGet("status")]
+        public async Task<ActionResult<List<EvacuationStatusResponseDto>>> GetStatus()
+        {
+            var plan = await _redisService.GetAsync<List<EvacuationStatusDto>>(_cacheKey);
+            if (plan == null)
+            {
+                _logger.LogWarning("No evacuation plan found in cache.");
+                return NotFound("No evacuation plan found.");
+            }
 
-        [HttpPost("clear")]
+            var response = plan.GroupBy(x => x.ZoneId)
+                .Select(g => new EvacuationStatusResponseDto
+                {
+                    ZoneId = g.Key,
+                    TotalEvacuated = g.Sum(x => x.Evacuated),
+                    RemainingPeople = g.Sum(x => x.Remaining),
+                    LastTravelBy = g.LastOrDefault().Logs?.LastOrDefault()?.VehicleId,
+                })
+                .ToList();
+
+            return Ok(response);
+        }
+
+        [HttpPut("update")]
+        public async Task<IActionResult> UpdateEvacuation([FromBody] UpdateEvacuationStatusDto updateDto)
+        {
+            if (updateDto == null || string.IsNullOrEmpty(updateDto.VehicleId) || updateDto.Evacuated < 0)
+            {
+                return BadRequest("Invalid update data.");
+            }
+
+            var plan = await _redisService.GetAsync<List<EvacuationStatusDto>>(_cacheKey);
+            if (plan == null)
+            {
+                return NotFound("No evacuation plan found to update.");
+            }
+
+            var updatedPlan = await _evacuationService.UpdateStatus(plan, updateDto);
+            await _redisService.SetAsync(_cacheKey, updatedPlan);
+
+            return NoContent();
+        }
+
+        [HttpDelete("clear")]
         public async Task<IActionResult> ClearPlan()
         {
-            var cacheKey = "evacuation_plan";
-            await _redisService.RemoveAsync(cacheKey);
+            var plan = await _redisService.GetAsync<List<EvacuationPlanDto>>(_cacheKey);
+            if (plan == null)
+            {
+                return NotFound("No evacuation plan found to clear.");
+            }
+
+            await _redisService.RemoveAsync(_cacheKey);
             return NoContent();
         }
     }

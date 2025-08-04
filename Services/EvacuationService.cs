@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AutoMapper;
 using EvacuationPlanning.Models;
+using EvacuationPlanning.Models.Dtos;
 using EvacuationPlanning.Models.Dtos.Evacuation;
 using EvacuationPlanning.Models.Dtos.Vehicle;
 using EvacuationPlanning.Repositories.Interfaces;
@@ -29,7 +30,7 @@ namespace EvacuationPlanning.Services
             _evacuationZoneRepository = evacuationZoneRepository;
         }
 
-        public async Task<List<EvacuationPlanDto>> GeneratePlan()
+        public async Task<List<EvacuationStatusDto>> GeneratePlan()
         {
             var vehicles = await _vehicleRepository.GetAllAsync();
             var zones = await _evacuationZoneRepository.GetAllAsync();
@@ -49,7 +50,24 @@ namespace EvacuationPlanning.Services
                 AssignVehicle(vehicleDistances, zone, plan);
             }
 
-            return plan;
+            return _mapper.Map<List<EvacuationStatusDto>>(plan);
+        }
+
+        private static string CalEta(double distance, double speed)
+        {
+            var etaInSec = distance / UnitConvert.FromKmhToMps(speed);
+            var eta = "";
+
+            if (etaInSec <= TimeSpan.MaxValue.TotalMilliseconds)
+            {
+                eta = $"{TimeSpan.FromSeconds(etaInSec).Minutes} minutes";
+            }
+            else
+            {
+                eta = "N/A";
+            }
+
+            return eta;
         }
 
         private static List<VehicleDistanceDto> CalculateDistance(TableEvacuationZone zone, List<VehicleDistanceDto> vehicleDistances, int reasonableDistance)
@@ -58,24 +76,13 @@ namespace EvacuationPlanning.Services
                     .Where(x => x.IsAvailable)
                     .Select(x =>
                     {
-                        // Calculate distance and ETA
                         var distance = HaversineCalculate.Distance(
                             x.LocationCoordinates.Latitude,
                             zone.Latitude,
                             x.LocationCoordinates.Longitude,
                             zone.Longitude);
 
-                        var etaInSec = distance / UnitConvert.FromKmhToMps(x.Speed);
-                        var eta = "";
-                        
-                        if (etaInSec <= TimeSpan.MaxValue.TotalMilliseconds)
-                        {
-                            eta = $"{TimeSpan.FromSeconds(etaInSec).Minutes} minutes";
-                        }
-                        else
-                        {
-                            eta = "N/A";
-                        }
+                        var eta = CalEta(distance, x.Speed);
 
                         var test = new VehicleDistanceDto()
                         {
@@ -114,7 +121,13 @@ namespace EvacuationPlanning.Services
                     ZoneId = zone.ZoneId,
                     VehicleId = null,
                     ETA = null,
-                    NumberOfPeople = 0,
+                    NumberOfPeople = zone.NumberOfPeople,
+                    UrgencyLevel = zone.UrgencyLevel,
+                    LocationCoordinates = new LocationCoordinatesDto
+                    {
+                        Latitude = zone.Latitude,
+                        Longitude = zone.Longitude
+                    }
                 });
 
                 return;
@@ -127,6 +140,12 @@ namespace EvacuationPlanning.Services
                 ZoneId = zone.ZoneId,
                 VehicleId = assignedVehicle.VehicleId,
                 ETA = assignedVehicle.ETA,
+                UrgencyLevel = zone.UrgencyLevel,
+                LocationCoordinates = new LocationCoordinatesDto
+                {
+                    Latitude = zone.Latitude,
+                    Longitude = zone.Longitude
+                },
                 NumberOfPeople =
                     zone.NumberOfPeople >= assignedVehicle.Capacity
                         ? assignedVehicle.Capacity
@@ -143,6 +162,66 @@ namespace EvacuationPlanning.Services
             }
 
             return;
+        }
+
+        public async Task<List<EvacuationStatusDto>> UpdateStatus(List<EvacuationStatusDto> plan, UpdateEvacuationStatusDto updateDto)
+        {
+            var evacuation = plan.FirstOrDefault(e => e.VehicleId == updateDto.VehicleId);
+            if (evacuation == null)
+            {
+                throw new KeyNotFoundException($"Vehicle with ID {updateDto.VehicleId} not found in the evacuation plan.");
+            }
+
+            var evacuationLog = new EvacuationLogDto
+            {
+                VehicleId = updateDto.VehicleId,
+                EvacueesMoved = updateDto.Evacuated,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            evacuation.VehicleId = null;
+            evacuation.ETA = null;
+            evacuation.Evacuated += updateDto.Evacuated;
+            evacuation.Remaining -= updateDto.Evacuated;
+            evacuation.Logs.Add(evacuationLog);
+
+            var mappedZones = plan.Select(e => new EvacuationZoneDto
+            {
+                ZoneId = e.ZoneId,
+                UrgencyLevel = e.UrgencyLevel,
+                NumberOfPeople = e.Remaining,
+                LocationCoordinates = e.LocationCoordinates
+            }).ToList();
+
+            return await ShiftVehicle(plan, updateDto);
+        }
+
+        private async Task<List<EvacuationStatusDto>> ShiftVehicle(List<EvacuationStatusDto> plan, UpdateEvacuationStatusDto updateDto)
+        {
+            var vehicle = await _vehicleRepository.GetByIdAsync(updateDto.VehicleId);
+            if (vehicle == null)
+            {
+                throw new KeyNotFoundException($"Vehicle with ID {updateDto.VehicleId} not found.");
+            }
+
+            var evacuation = plan.FirstOrDefault(e => e.VehicleId == null && e.Remaining > 0);
+
+            if (evacuation == null)
+            {
+                return plan;
+            }
+
+            evacuation.VehicleId = updateDto.VehicleId;
+
+            var distance = HaversineCalculate.Distance(
+                            vehicle.Latitude,
+                            evacuation.LocationCoordinates.Latitude,
+                            vehicle.Longitude,
+                            evacuation.LocationCoordinates.Longitude);
+
+            evacuation.ETA = CalEta(distance, vehicle.Speed);
+
+            return plan;
         }
     }
 }
