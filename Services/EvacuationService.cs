@@ -183,11 +183,15 @@ namespace EvacuationPlanning.Services
                 CreatedAt = DateTime.UtcNow
             };
 
+            _logger.LogInformation($"Updating evacuation status for zone {evacuation.ZoneId} with vehicle {updateDto.VehicleId}.");
+
             evacuation.VehicleId = null;
             evacuation.ETA = null;
             evacuation.Evacuated += updateDto.Evacuated;
             evacuation.Remaining -= updateDto.Evacuated;
             evacuation.Logs.Add(evacuationLog);
+
+            _logger.LogInformation($"Vehicle {updateDto.VehicleId} has evacuated {updateDto.Evacuated} people. Remaining: {evacuation.Remaining}.");
 
             var mappedZones = plan.Select(e => new EvacuationZoneDto
             {
@@ -224,6 +228,7 @@ namespace EvacuationPlanning.Services
                             evacuation.LocationCoordinates.Longitude);
 
             evacuation.ETA = CalEta(distance, vehicle.Speed);
+            _logger.LogInformation($"Vehicle {updateDto.VehicleId} has been assigned to zone {evacuation.ZoneId} with an ETA of {evacuation.ETA}.");
 
             return plan;
         }
