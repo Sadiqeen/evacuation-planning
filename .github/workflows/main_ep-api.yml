@@ -1,0 +1,54 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy container app to Azure Web App - ep-api
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read #This is required for actions/checkout
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ecevacuationplanning.azurecr.io/
+          username: ${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_7112FBA1A18D41EF9BD1472489258315 }}
+          password: ${{ secrets.AZUREAPPSERVICE_CONTAINERPASSWORD_68CDFEC67245475BB294E5752F520A19 }}
+
+      - name: Build and push container image to registry
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          tags: ecevacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_7112FBA1A18D41EF9BD1472489258315 }}/evacuation-planning:${{ github.sha }}
+          file: ./Dockerfile
+
+  deploy:
+    runs-on: ubuntu-latest
+    
+    needs: build
+    
+
+    steps:
+      
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'ep-api'
+          slot-name: 'Production'
+          images: 'ecevacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_7112FBA1A18D41EF9BD1472489258315 }}/evacuation-planning:${{ github.sha }}'
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_89DD08D4FF004028A3F0F55C4AC4C53B }}
