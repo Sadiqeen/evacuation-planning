@@ -46,7 +46,9 @@ namespace EvacuationPlanning.Services
 
             foreach (var zone in zones)
             {
-                vehicleDistances = CalculateDistance(zone, vehicleDistances, _reasonableDistance);
+                vehicleDistances = CalculateDistance(zone, vehicleDistances);
+                vehicleDistances = vehicleDistances.Where(x => x.Distance <= _reasonableDistance).ToList();
+                _logger.LogInformation($"Zone {zone.ZoneId} has {vehicleDistances.Count} vehicles available for evacuation.");
                 AssignVehicle(vehicleDistances, zone, plan);
             }
 
@@ -70,7 +72,7 @@ namespace EvacuationPlanning.Services
             return eta;
         }
 
-        private static List<VehicleDistanceDto> CalculateDistance(TableEvacuationZone zone, List<VehicleDistanceDto> vehicleDistances, int reasonableDistance)
+        private List<VehicleDistanceDto> CalculateDistance(TableEvacuationZone zone, List<VehicleDistanceDto> vehicleDistances)
         {
             return vehicleDistances = vehicleDistances
                     .Where(x => x.IsAvailable)
@@ -82,9 +84,11 @@ namespace EvacuationPlanning.Services
                             x.LocationCoordinates.Longitude,
                             zone.Longitude);
 
+                        _logger.LogInformation($"Vehicle {x.VehicleId} is {distance} meters away from zone {zone.ZoneId}.");
                         var eta = CalEta(distance, x.Speed);
+                        _logger.LogInformation($"Vehicle {x.VehicleId} has an ETA of {eta}.");
 
-                        var test = new VehicleDistanceDto()
+                        var vehicleDistance = new VehicleDistanceDto()
                         {
                             VehicleId = x.VehicleId,
                             LocationCoordinates = x.LocationCoordinates,
@@ -95,7 +99,7 @@ namespace EvacuationPlanning.Services
                             ETA = eta,
                         };
 
-                        return test;
+                        return vehicleDistance;
                     })
                     .ToList();
         }
