@@ -8,6 +8,6 @@ namespace EvacuationPlanning.Models.Dtos
         public int Capacity { get; set; }
         public VehicleType Type { get; set; }
         public LocationCoordinatesDto LocationCoordinates { get; set; } = new();
-        public decimal Speed { get; set; }
+        public int Speed { get; set; }
     }
 }
