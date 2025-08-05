@@ -33,7 +33,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ecevacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_7112FBA1A18D41EF9BD1472489258315 }}/evacuation-planning:${{ github.sha }}
+          tags: ecevacuationplanning.azurecr.io/evacuation-planning:${{ github.sha }}
           file: ./Dockerfile
 
   deploy:
@@ -50,5 +50,6 @@ jobs:
         with:
           app-name: 'ep-api'
           slot-name: 'Production'
-          images: 'ecevacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_7112FBA1A18D41EF9BD1472489258315 }}/evacuation-planning:${{ github.sha }}'
+          images: 'ecevacuationplanning.azurecr.io/evacuation-planning:${{ github.sha }}'
+
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_89DD08D4FF004028A3F0F55C4AC4C53B }}
