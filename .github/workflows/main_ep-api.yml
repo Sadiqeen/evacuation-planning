@@ -25,31 +25,40 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: ecevacuationplanning.azurecr.io/
-          username: ${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_7112FBA1A18D41EF9BD1472489258315 }}
-          password: ${{ secrets.AZUREAPPSERVICE_CONTAINERPASSWORD_68CDFEC67245475BB294E5752F520A19 }}
+          username: ${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_0397FB58D0794803B71583C3847AEE86 }}
+          password: ${{ secrets.AZUREAPPSERVICE_CONTAINERPASSWORD_7B6F88E5B61D4F3E8EE29CF7E3D1CCB5 }}
 
       - name: Build and push container image to registry
         uses: docker/build-push-action@v3
         with:
           context: .
           push: true
-          tags: ecevacuationplanning.azurecr.io/evacuation-planning:${{ github.sha }}
+          tags: ecevacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_0397FB58D0794803B71583C3847AEE86 }}/evacuation-planning:${{ github.sha }}
           file: ./Dockerfile
 
   deploy:
     runs-on: ubuntu-latest
-    
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
+
     needs: build
     
 
     steps:
       
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_FB13443E45B44D64A705104279836B0A }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_4716388DD9EE473EA317097D241AE3F0 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6427DB09F45A4E7F9635726E11041E5E }}
+
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'ep-api'
           slot-name: 'Production'
-          images: 'ecevacuationplanning.azurecr.io/evacuation-planning:${{ github.sha }}'
-
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_89DD08D4FF004028A3F0F55C4AC4C53B }}
+          images: 'ecevacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_0397FB58D0794803B71583C3847AEE86 }}/evacuation-planning:${{ github.sha }}'
+          
