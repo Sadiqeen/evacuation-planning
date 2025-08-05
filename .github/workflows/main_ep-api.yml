@@ -25,15 +25,15 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: ecevacuationplanning.azurecr.io/
-          username: ${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_0397FB58D0794803B71583C3847AEE86 }}
-          password: ${{ secrets.AZUREAPPSERVICE_CONTAINERPASSWORD_7B6F88E5B61D4F3E8EE29CF7E3D1CCB5 }}
+          username: ${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_BAB8667A45A344168CA62632BE7AE4DE }}
+          password: ${{ secrets.AZUREAPPSERVICE_CONTAINERPASSWORD_67AD3C9EDBFF46428C58F45A5D86B7A1 }}
 
       - name: Build and push container image to registry
         uses: docker/build-push-action@v3
         with:
           context: .
           push: true
-          tags: ecevacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_0397FB58D0794803B71583C3847AEE86 }}/evacuation-planning:${{ github.sha }}
+          tags: ecevacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_BAB8667A45A344168CA62632BE7AE4DE }}/ecevacuationplanning/evacuation-planning:${{ github.sha }}
           file: ./Dockerfile
 
   deploy:
@@ -50,9 +50,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_FB13443E45B44D64A705104279836B0A }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_4716388DD9EE473EA317097D241AE3F0 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6427DB09F45A4E7F9635726E11041E5E }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_0860DB40D84F41E59E23CE3C2779BC61 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_383A7062D8D44781AB594ADB9CB1EEF3 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_DA739B136FC94234A2A9B7263AB2E8AB }}
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
@@ -60,5 +60,5 @@ jobs:
         with:
           app-name: 'ep-api'
           slot-name: 'Production'
-          images: 'ecevacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_0397FB58D0794803B71583C3847AEE86 }}/evacuation-planning:${{ github.sha }}'
+          images: 'ecevacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_BAB8667A45A344168CA62632BE7AE4DE }}/ecevacuationplanning/evacuation-planning:${{ github.sha }}'
           
