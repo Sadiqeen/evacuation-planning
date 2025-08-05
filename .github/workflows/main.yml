@@ -28,5 +28,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: ecevacuationplanning.azurecr.io/${{ vars.REGISTRY_USERNAME }}/evacuation-planning:${{ github.sha }}
+          tags: ecevacuationplanning.azurecr.io/evacuation-planning:${{ github.sha }}
           file: ./Dockerfile
