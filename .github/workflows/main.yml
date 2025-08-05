@@ -30,3 +30,17 @@ jobs:
           push: true
           tags: ecevacuationplanning.azurecr.io/evacuation-planning:${{ github.sha }}
           file: ./Dockerfile
+ 
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment: demo
+
+    steps:
+      - name: Deploy
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ep-api
+          publish-profile: ${{ secrets.PUBLISH_PROFILE }}
+          images: ecevacuationplanning.azurecr.io/evacuation-planning:${{ github.sha }}
