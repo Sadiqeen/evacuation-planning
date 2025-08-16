@@ -25,21 +25,22 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: evacuationplanning.azurecr.io/
-          username: ${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_227A05AC31A74F0AA88CF149536C54A7 }}
-          password: ${{ secrets.AZUREAPPSERVICE_CONTAINERPASSWORD_4B92010B29F34E1EA507DDF149384413 }}
+          username: ${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_B34A6309E7C446D2ACFD903C736D96CD }}
+          password: ${{ secrets.AZUREAPPSERVICE_CONTAINERPASSWORD_097F5BA51CE843C4914BD162CB03E696 }}
 
       - name: Build and push container image to registry
         uses: docker/build-push-action@v3
         with:
           context: .
           push: true
-          tags: evacuationplanning.azurecr.io/evacuation-planning-api:${{ github.sha }}
+          tags: evacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_B34A6309E7C446D2ACFD903C736D96CD }}/evacuation-planning-api:${{ github.sha }}
           file: ./Dockerfile
 
   deploy:
     runs-on: ubuntu-latest
-    environment: demo
+    
     needs: build
+    
 
     steps:
       
@@ -48,5 +49,6 @@ jobs:
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'evacuation-planning'
-          images: 'evacuationplanning.azurecr.io/evacuation-planning-api:${{ github.sha }}'
-          publish-profile: ${{ secrets.PUBLISH_PROFILE }}
+          slot-name: 'Production'
+          images: 'evacuationplanning.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_B34A6309E7C446D2ACFD903C736D96CD }}/evacuation-planning-api:${{ github.sha }}'
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_AAC3A7E595F84173B654BC78F1D97DA1 }}
