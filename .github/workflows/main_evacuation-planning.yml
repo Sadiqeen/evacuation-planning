@@ -50,4 +50,4 @@ jobs:
         with:
           app-name: 'evacuation-planning'
           images: 'evacuationplanning.azurecr.io/evacuation-planning-api:${{ github.sha }}'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_78AA799D078F4A5B9E61288788BBF5D9 }}
+          publish-profile: ${{ secrets.PUBLISH_PROFILE }}
