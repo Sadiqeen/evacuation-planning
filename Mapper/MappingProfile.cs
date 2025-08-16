@@ -31,20 +31,15 @@ namespace EvacuationPlanning.Mapper
                     Longitude = src.Longitude
                 }));
             CreateMap<TableVehicle, VehicleDistanceDto>()
-                .ForMember(dest => dest.LocationCoordinates, opt => opt.MapFrom(src => new LocationCoordinatesDto
-                {
-                    Latitude = src.Latitude,
-                    Longitude = src.Longitude
-                }));
+                .ForMember(dest => dest.Vehicle, opt => opt.MapFrom(src => src));
 
             CreateMap<EvacuationPlanDto, EvacuationStatusDto>()
-                .ForMember(dest => dest.Remaining, opt => opt.MapFrom(src => src.NumberOfPeople));
+                .ForMember(dest => dest.Remaining, opt => opt.MapFrom(src => src.Vehicle.Capacity));
 
-            CreateMap<EvacuationStatusDto, EvacuationPlanDto>()
-                .ForMember(dest => dest.NumberOfPeople, opt => opt.MapFrom(src => src.Remaining));
+            CreateMap<EvacuationStatusDto, EvacuationPlanDto>();
 
-            // Map Response DTOs
-            CreateMap<EvacuationPlanDto, EvacuationPlanResponseDto>();
+            CreateMap<EvacuationPlanDto, EvacuationPlanResponseDto>()
+                .ForMember(dest => dest.NumberOfPeople, opt => opt.MapFrom(src => src.Remaining < src.Vehicle.Capacity ? src.Remaining : src.Vehicle.Capacity));
         }
     }
 }

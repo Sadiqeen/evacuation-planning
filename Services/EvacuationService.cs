@@ -16,7 +16,7 @@ namespace EvacuationPlanning.Services
         private readonly ILogger<EvacuationService> _logger;
         private readonly IVehicleRepository _vehicleRepository;
         private readonly IEvacuationZoneRepository _evacuationZoneRepository;
-        private int _reasonableDistance { get { return 100; } }
+        private static int _reasonableDistanceKm { get { return 20; } }
 
         public EvacuationService(
             IMapper mapper,
@@ -30,7 +30,7 @@ namespace EvacuationPlanning.Services
             _evacuationZoneRepository = evacuationZoneRepository;
         }
 
-        public async Task<List<EvacuationStatusDto>> GeneratePlan()
+        public async Task<List<EvacuationPlanDto>> GeneratePlan()
         {
             var vehicles = await _vehicleRepository.GetAllAsync();
             var zones = await _evacuationZoneRepository.GetAllAsync();
@@ -47,17 +47,17 @@ namespace EvacuationPlanning.Services
             foreach (var zone in zones)
             {
                 vehicleDistances = CalculateDistance(zone, vehicleDistances);
-                vehicleDistances = vehicleDistances.Where(x => x.Distance <= _reasonableDistance).ToList();
+                vehicleDistances = vehicleDistances.Where(x => x.Distance <= _reasonableDistanceKm).ToList();
                 _logger.LogInformation($"Zone {zone.ZoneId} has {vehicleDistances.Count} vehicles available for evacuation.");
                 AssignVehicle(vehicleDistances, zone, plan);
             }
 
-            return _mapper.Map<List<EvacuationStatusDto>>(plan);
+            return plan;
         }
 
-        private static string CalEta(double distance, double speed)
+        private static string CalEta(double distanceMetres, double speed)
         {
-            var etaInSec = distance / UnitConvert.FromKmhToMps(speed);
+            var etaInSec = distanceMetres / UnitConvert.FromKmhToMps(speed);
             var eta = "";
 
             if (etaInSec <= TimeSpan.MaxValue.TotalMilliseconds)
@@ -78,25 +78,22 @@ namespace EvacuationPlanning.Services
                     .Where(x => x.IsAvailable)
                     .Select(x =>
                     {
-                        var distance = HaversineCalculate.Distance(
-                            x.LocationCoordinates.Latitude,
+                        var distanceMetres = HaversineCalculate.Distance(
+                            x.Vehicle.Latitude,
                             zone.Latitude,
-                            x.LocationCoordinates.Longitude,
+                            x.Vehicle.Longitude,
                             zone.Longitude);
 
-                        _logger.LogInformation($"Vehicle {x.VehicleId} is {distance} meters away from zone {zone.ZoneId}.");
-                        var eta = CalEta(distance, x.Speed);
+                        _logger.LogInformation($"Vehicle {x.VehicleId} is {distanceMetres} meters away from zone {zone.ZoneId}.");
+                        var eta = CalEta(distanceMetres, x.Vehicle.Speed);
                         _logger.LogInformation($"Vehicle {x.VehicleId} has an ETA of {eta}.");
 
                         var vehicleDistance = new VehicleDistanceDto()
                         {
-                            VehicleId = x.VehicleId,
-                            LocationCoordinates = x.LocationCoordinates,
-                            Capacity = x.Capacity,
-                            Type = x.Type,
-                            Distance = distance,
-                            Speed = x.Speed,
+                            VehicleId = x.Vehicle.VehicleId,
+                            Distance = distanceMetres,
                             ETA = eta,
+                            Vehicle = x.Vehicle
                         };
 
                         return vehicleDistance;
@@ -107,14 +104,14 @@ namespace EvacuationPlanning.Services
         private static void AssignVehicle(List<VehicleDistanceDto> vehicleDistances, TableEvacuationZone zone, List<EvacuationPlanDto> plan)
         {
             // Order by capacity
-            var assignedVehicle = vehicleDistances.Where(x => x.Capacity >= zone.NumberOfPeople)
-                .OrderBy(x => x.Capacity)
+            var assignedVehicle = vehicleDistances.Where(x => x.Vehicle.Capacity >= zone.NumberOfPeople)
+                .OrderBy(x => x.Vehicle.Capacity)
                 .FirstOrDefault();
 
             // If no available capacity fine max capacity
             if (assignedVehicle == null)
             {
-                assignedVehicle = vehicleDistances.OrderByDescending(x => x.Capacity).FirstOrDefault();
+                assignedVehicle = vehicleDistances.OrderByDescending(x => x.Vehicle.Capacity).FirstOrDefault();
             }
 
             if (assignedVehicle == null)
@@ -125,13 +122,10 @@ namespace EvacuationPlanning.Services
                     ZoneId = zone.ZoneId,
                     VehicleId = null,
                     ETA = null,
-                    NumberOfPeople = zone.NumberOfPeople,
-                    UrgencyLevel = zone.UrgencyLevel,
-                    LocationCoordinates = new LocationCoordinatesDto
-                    {
-                        Latitude = zone.Latitude,
-                        Longitude = zone.Longitude
-                    }
+                    Remaining = zone.NumberOfPeople,
+                    Evacuated = 0,
+                    TotalPeople = zone.NumberOfPeople,
+                    Zone = zone,
                 });
 
                 return;
@@ -144,36 +138,29 @@ namespace EvacuationPlanning.Services
                 ZoneId = zone.ZoneId,
                 VehicleId = assignedVehicle.VehicleId,
                 ETA = assignedVehicle.ETA,
-                UrgencyLevel = zone.UrgencyLevel,
-                LocationCoordinates = new LocationCoordinatesDto
-                {
-                    Latitude = zone.Latitude,
-                    Longitude = zone.Longitude
-                },
-                NumberOfPeople =
-                    zone.NumberOfPeople >= assignedVehicle.Capacity
-                        ? assignedVehicle.Capacity
-                        : assignedVehicle.Capacity - zone.NumberOfPeople,
+                Vehicle = assignedVehicle.Vehicle,
+                TotalPeople = zone.NumberOfPeople,
+                Remaining = zone.NumberOfPeople,
+                Zone = zone,
             });
 
-            int remain = zone.NumberOfPeople - assignedVehicle.Capacity;
+            int remain = zone.NumberOfPeople - assignedVehicle.Vehicle.Capacity;
 
-            if (remain > 0)
-            {
-                zone.NumberOfPeople = remain;
-                vehicleDistances = vehicleDistances.Where(x => x.VehicleId != assignedVehicle.VehicleId).ToList();
-                AssignVehicle(vehicleDistances, zone, plan);
-            }
 
             return;
         }
 
-        public async Task<List<EvacuationStatusDto>> UpdateStatus(List<EvacuationStatusDto> plan, UpdateEvacuationStatusDto updateDto)
+        public async Task<List<EvacuationPlanDto>> UpdateStatus(List<EvacuationPlanDto> plan, UpdateEvacuationStatusDto updateDto)
         {
             var evacuation = plan.FirstOrDefault(e => e.VehicleId == updateDto.VehicleId);
             if (evacuation == null)
             {
                 throw new KeyNotFoundException($"Vehicle with ID {updateDto.VehicleId} not found in the evacuation plan.");
+            }
+
+            if (evacuation.Remaining < updateDto.Evacuated)
+            {
+                throw new InvalidOperationException($"Cannot evacuate {updateDto.Evacuated} people from zone {evacuation.ZoneId}. Remaining people: {evacuation.Remaining}.");
             }
 
             var evacuationLog = new EvacuationLogDto
@@ -185,33 +172,27 @@ namespace EvacuationPlanning.Services
 
             _logger.LogInformation($"Updating evacuation status for zone {evacuation.ZoneId} with vehicle {updateDto.VehicleId}.");
 
+            var vehicle = new TableVehicle
+            {
+                VehicleId = evacuation.Vehicle.VehicleId,
+                Latitude = evacuation.Vehicle.Latitude,
+                Longitude = evacuation.Vehicle.Longitude,
+                Speed = evacuation.Vehicle.Speed,
+                Capacity = evacuation.Vehicle.Capacity
+            };
             evacuation.VehicleId = null;
             evacuation.ETA = null;
             evacuation.Evacuated += updateDto.Evacuated;
-            evacuation.Remaining -= updateDto.Evacuated;
-            evacuation.Logs.Add(evacuationLog);
+            evacuation.Remaining = evacuation.TotalPeople - evacuation.Evacuated;
+            evacuation.Log.Add(evacuationLog);
 
             _logger.LogInformation($"Vehicle {updateDto.VehicleId} has evacuated {updateDto.Evacuated} people. Remaining: {evacuation.Remaining}.");
 
-            var mappedZones = plan.Select(e => new EvacuationZoneDto
-            {
-                ZoneId = e.ZoneId,
-                UrgencyLevel = e.UrgencyLevel,
-                NumberOfPeople = e.Remaining,
-                LocationCoordinates = e.LocationCoordinates
-            }).ToList();
-
-            return await ShiftVehicle(plan, updateDto);
+            return await ShiftVehicle(plan, vehicle, updateDto);
         }
 
-        private async Task<List<EvacuationStatusDto>> ShiftVehicle(List<EvacuationStatusDto> plan, UpdateEvacuationStatusDto updateDto)
+        private async Task<List<EvacuationPlanDto>> ShiftVehicle(List<EvacuationPlanDto> plan, TableVehicle vehicle, UpdateEvacuationStatusDto updateDto)
         {
-            var vehicle = await _vehicleRepository.GetByIdAsync(updateDto.VehicleId);
-            if (vehicle == null)
-            {
-                throw new KeyNotFoundException($"Vehicle with ID {updateDto.VehicleId} not found.");
-            }
-
             var evacuation = plan.FirstOrDefault(e => e.VehicleId == null && e.Remaining > 0);
 
             if (evacuation == null)
@@ -220,12 +201,13 @@ namespace EvacuationPlanning.Services
             }
 
             evacuation.VehicleId = updateDto.VehicleId;
+            evacuation.Vehicle = vehicle;
 
             var distance = HaversineCalculate.Distance(
                             vehicle.Latitude,
-                            evacuation.LocationCoordinates.Latitude,
+                            evacuation.Zone.Latitude,
                             vehicle.Longitude,
-                            evacuation.LocationCoordinates.Longitude);
+                            evacuation.Zone.Longitude);
 
             evacuation.ETA = CalEta(distance, vehicle.Speed);
             _logger.LogInformation($"Vehicle {updateDto.VehicleId} has been assigned to zone {evacuation.ZoneId} with an ETA of {evacuation.ETA}.");

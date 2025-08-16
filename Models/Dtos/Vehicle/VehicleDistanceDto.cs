@@ -5,10 +5,12 @@ using System.Threading.Tasks;
 
 namespace EvacuationPlanning.Models.Dtos.Vehicle
 {
-    public class VehicleDistanceDto : VehicleDto
+    public class VehicleDistanceDto
     {
+        public string VehicleId { get; set; }
         public double Distance { get; set; }
         public string ETA { get; set; }
         public bool IsAvailable { get; set; } = true;
+        public TableVehicle Vehicle { get; set; }
     }
 }

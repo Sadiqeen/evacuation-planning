@@ -33,7 +33,7 @@ namespace EvacuationPlanning.Controllers
         [HttpPost("plan")]
         public async Task<ActionResult<List<EvacuationPlanResponseDto>>> GeneratePlan()
         {
-            var plan = await _redisService.GetAsync<List<EvacuationStatusDto>>(_cacheKey);
+            var plan = await _redisService.GetAsync<List<EvacuationPlanDto>>(_cacheKey);
 
             if (plan == null)
             {
@@ -48,7 +48,7 @@ namespace EvacuationPlanning.Controllers
         [HttpGet("status")]
         public async Task<ActionResult<List<EvacuationStatusResponseDto>>> GetStatus()
         {
-            var plan = await _redisService.GetAsync<List<EvacuationStatusDto>>(_cacheKey);
+            var plan = await _redisService.GetAsync<List<EvacuationPlanDto>>(_cacheKey);
             if (plan == null)
             {
                 _logger.LogWarning("No evacuation plan found in cache.");
@@ -61,7 +61,7 @@ namespace EvacuationPlanning.Controllers
                     ZoneId = g.Key,
                     TotalEvacuated = g.Sum(x => x.Evacuated),
                     RemainingPeople = g.Sum(x => x.Remaining),
-                    LastTravelBy = g.LastOrDefault().Logs?.LastOrDefault()?.VehicleId,
+                    LastTravelBy = g.LastOrDefault()?.Log?.LastOrDefault()?.VehicleId ?? null,
                 })
                 .ToList();
 
@@ -76,7 +76,7 @@ namespace EvacuationPlanning.Controllers
                 return BadRequest("Invalid update data.");
             }
 
-            var plan = await _redisService.GetAsync<List<EvacuationStatusDto>>(_cacheKey);
+            var plan = await _redisService.GetAsync<List<EvacuationPlanDto>>(_cacheKey);
             if (plan == null)
             {
                 return NotFound("No evacuation plan found to update.");
