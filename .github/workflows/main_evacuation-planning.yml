@@ -38,9 +38,8 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    
+    environment: demo
     needs: build
-    
 
     steps:
       
