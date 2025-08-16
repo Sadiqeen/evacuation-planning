@@ -28,7 +28,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ecevacuationplanning.azurecr.io/evacuation-planning:${{ github.sha }}
+          tags: evacuationplanning.azurecr.io/evacuation-planning-api:${{ github.sha }}
           file: ./Dockerfile
  
   deploy:
@@ -43,4 +43,4 @@ jobs:
         with:
           app-name: ep-api
           publish-profile: ${{ secrets.PUBLISH_PROFILE }}
-          images: ecevacuationplanning.azurecr.io/evacuation-planning:${{ github.sha }}
+          images: evacuationplanning.azurecr.io/evacuation-planning-api:${{ github.sha }}
