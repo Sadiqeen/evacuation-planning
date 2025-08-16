@@ -49,6 +49,5 @@ jobs:
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'evacuation-planning'
-          slot-name: 'Production'
           images: 'evacuationplanning.azurecr.io/evacuation-planning-api:${{ github.sha }}'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_78AA799D078F4A5B9E61288788BBF5D9 }}
