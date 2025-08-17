@@ -96,7 +96,7 @@ namespace EvacuationPlanning.Controllers
             var plan = await _redisService.GetAsync<List<EvacuationPlanDto>>(_cacheKey);
             if (plan == null)
             {
-                return NotFound("No evacuation plan found to clear.");
+                throw new KeyNotFoundException("No evacuation plan found to clear.");
             }
 
             await _redisService.RemoveAsync(_cacheKey);
