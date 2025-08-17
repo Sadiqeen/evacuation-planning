@@ -40,7 +40,7 @@ namespace EvacuationPlanning.Controllers
             var vehicle = await _vehicleService.GetVehicleByIdAsync(id);
             if (vehicle == null)
             {
-                return NotFound($"Vehicle with ID '{id}' not found.");
+                throw new KeyNotFoundException($"Vehicle with ID '{id}' not found.");
             }
 
             var response = _mapper.Map<VehicleDto>(vehicle);
@@ -58,7 +58,7 @@ namespace EvacuationPlanning.Controllers
             var existingVehicle = await _vehicleService.GetVehicleByIdAsync(createVehicleDto.VehicleId);
             if (existingVehicle != null)
             {
-                return Conflict($"Vehicle with ID '{createVehicleDto.VehicleId}' already exists.");
+                throw new InvalidOperationException($"Vehicle with ID '{createVehicleDto.VehicleId}' already exists.");
             }
 
             var vehicle = _mapper.Map<TableVehicle>(createVehicleDto);

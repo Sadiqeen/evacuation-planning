@@ -4,6 +4,7 @@ using AutoMapper;
 using EvacuationPlanning.Models.Dtos.Evacuation;
 using EvacuationPlanning.Infrastructures.Interfaces;
 using EvacuationPlanning.Models.Dtos;
+using Humanizer;
 
 namespace EvacuationPlanning.Controllers
 {
@@ -52,7 +53,7 @@ namespace EvacuationPlanning.Controllers
             if (plan == null)
             {
                 _logger.LogWarning("No evacuation plan found in cache.");
-                return NotFound("No evacuation plan found.");
+                throw new KeyNotFoundException("No evacuation plan found.");
             }
 
             var response = plan.GroupBy(x => x.ZoneId)
@@ -73,19 +74,20 @@ namespace EvacuationPlanning.Controllers
         {
             if (updateDto == null || string.IsNullOrEmpty(updateDto.VehicleId) || updateDto.Evacuated < 0)
             {
-                return BadRequest("Invalid update data.");
+                throw new InvalidOperationException("Invalid update data.");
             }
 
             var plan = await _redisService.GetAsync<List<EvacuationPlanDto>>(_cacheKey);
             if (plan == null)
             {
-                return NotFound("No evacuation plan found to update.");
+                throw new KeyNotFoundException("No evacuation plan found to update.");
             }
 
             var updatedPlan = await _evacuationService.UpdateStatus(plan, updateDto);
             await _redisService.SetAsync(_cacheKey, updatedPlan);
 
-            return NoContent();
+            var response = _mapper.Map<List<EvacuationPlanResponseDto>>(updatedPlan);
+            return Ok(response);
         }
 
         [HttpDelete("clear")]

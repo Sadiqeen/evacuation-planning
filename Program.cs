@@ -7,6 +7,7 @@ using EvacuationPlanning.Repositories.Interfaces;
 using EvacuationPlanning.Mapper;
 using EvacuationPlanning.Infrastructures.Interfaces;
 using EvacuationPlanning.Infrastructures;
+using EvacuationPlanning.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -42,9 +44,10 @@ builder.Services.AddScoped<IRedisService, RedisService>();
 // Add Repository
 builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
 builder.Services.AddScoped<IEvacuationZoneRepository, EvacuationZoneRepository>();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 var app = builder.Build();
-
+app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
 
