@@ -1,0 +1,20 @@
+@startuml
+actor User
+participant "EvacuationController" as Controller
+participant "EvacuationService" as Service
+participant "VehicleRepository" as VehicleRepo
+participant "EvacuationZoneRepository" as ZoneRepo
+participant "RedisCache" as Cache
+
+User -> Controller: Generate plan
+Controller -> Service: Generate plan
+Service -> VehicleRepo: Get All vehicles
+VehicleRepo -> Service: Return vehicles
+Service -> ZoneRepo: Get All zones
+ZoneRepo -> Service: Return zones
+Service -> Service: Calculate distance
+Service -> Service: Assign vehicle to zone
+Service -> Controller: Return EvacuationPlanDto
+Controller -> Cache: Store EvacuationPlanDto
+Controller -> User: Return EvacuationPlanDto
+@enduml

@@ -1,0 +1,17 @@
+@startuml
+!pragma useVerticalIf on
+start
+while (Zone available)
+  :Calculate distances;
+  if (Within reasonable distance) then (yes)
+    if (if vehicle capacity is enough for all passengers) then (yes)
+    else (no)
+      :Select max vehicle capacity;
+    endif
+    :Assign vehicle;
+  else (no)
+    :Out of range;
+  endif
+endwhile
+stop
+@enduml

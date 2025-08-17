@@ -1,0 +1,10 @@
+@startuml
+actor User
+participant "EvacuationController" as Controller
+participant "RedisCache" as Cache
+
+User -> Controller: Get evacuation status
+Controller -> Cache: Get evacuation plan
+Cache -> Controller: Return evacuation plan
+Controller -> User: Return EvacuationStatusDto
+@enduml
