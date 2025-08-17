@@ -16,7 +16,7 @@ namespace EvacuationPlanning.Services
         private readonly ILogger<EvacuationService> _logger;
         private readonly IVehicleRepository _vehicleRepository;
         private readonly IEvacuationZoneRepository _evacuationZoneRepository;
-        private static int _reasonableDistanceKm { get { return 20; } }
+        private static int _reasonableDistanceMetres { get { return 20 * 1000; } }
 
         public EvacuationService(
             IMapper mapper,
@@ -47,9 +47,16 @@ namespace EvacuationPlanning.Services
             foreach (var zone in zones)
             {
                 vehicleDistances = CalculateDistance(zone, vehicleDistances);
-                vehicleDistances = vehicleDistances.Where(x => x.Distance <= _reasonableDistanceKm).ToList();
+                vehicleDistances = vehicleDistances.Where(x => x.Distance <= _reasonableDistanceMetres).ToList();
                 _logger.LogInformation($"Zone {zone.ZoneId} has {vehicleDistances.Count} vehicles available for evacuation.");
                 AssignVehicle(vehicleDistances, zone, plan);
+            }
+
+            var zoneWithNoVehicles = plan.Where(z => z.VehicleId == null).ToList();
+
+            if (zoneWithNoVehicles.Count != 0)
+            {
+                throw new InvalidOperationException($"The following zones have no vehicles available for evacuation: {JsonSerializer.Serialize(zoneWithNoVehicles.Select(z => z.ZoneId))}");
             }
 
             return plan;
@@ -158,9 +165,9 @@ namespace EvacuationPlanning.Services
                 throw new KeyNotFoundException($"Vehicle with ID {updateDto.VehicleId} not found in the evacuation plan.");
             }
 
-            if (evacuation.Remaining < updateDto.Evacuated)
+            if (evacuation.Remaining < updateDto.Evacuated || evacuation.Vehicle.Capacity < updateDto.Evacuated)
             {
-                throw new InvalidOperationException($"Cannot evacuate {updateDto.Evacuated} people from zone {evacuation.ZoneId}. Remaining people: {evacuation.Remaining}.");
+                throw new InvalidOperationException($"Cannot evacuate {updateDto.Evacuated} people from zone {evacuation.ZoneId}. Remaining people: {evacuation.Remaining}. Vehicle capacity: {evacuation.Vehicle.Capacity}.");
             }
 
             var evacuationLog = new EvacuationLogDto

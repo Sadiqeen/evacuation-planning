@@ -36,7 +36,7 @@ namespace EvacuationPlanning.Controllers
             var zone = await _evacuationZoneService.GetEvacuationZoneByIdAsync(id);
             if (zone == null)
             {
-                return NotFound($"Evacuation zone with ID '{id}' not found.");
+                throw new KeyNotFoundException($"Evacuation zone with ID '{id}' not found.");
             }
 
             var response = _mapper.Map<EvacuationZoneDto>(zone);
@@ -54,7 +54,7 @@ namespace EvacuationPlanning.Controllers
             var existingZone = await _evacuationZoneService.GetEvacuationZoneByIdAsync(createZoneDto.ZoneId);
             if (existingZone != null)
             {
-                return Conflict($"Evacuation zone with ID '{createZoneDto.ZoneId}' already exists.");
+                throw new InvalidOperationException($"Evacuation zone with ID '{createZoneDto.ZoneId}' already exists.");
             }
 
             var zone = _mapper.Map<TableEvacuationZone>(createZoneDto);
